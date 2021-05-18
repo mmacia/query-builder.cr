@@ -1,0 +1,9 @@
+name: query-builder
+version: 0.1.0
+
+authors:
+  - Moisès Macià <mmacia@gmail.com>
+
+crystal: 1.0.0
+
+license: MIT
