@@ -1,7 +1,7 @@
 require "./sqlite3/*"
 
 module QueryBuilder
-  VERSION = "0.1.0"
+  VERSION = `cat VERSION`.chomp
 
   def self.builder_for(name : String)
     case name.downcase
