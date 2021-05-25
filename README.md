@@ -125,10 +125,6 @@ alias Projection = Sqlite3::Projection
 .select(Projection.column("column1").cast_string)
 ```
 
-### Basic INSERT statement
-### Basic UPDATE statement
-### Basic DELETE statement
-
 ### Subquery projections
 
 ```crystal
