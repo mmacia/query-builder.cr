@@ -235,6 +235,19 @@ module Sqlite3
       self
     end
 
+    def reset_limit!
+      self.take_rows = nil
+      self.offset = nil
+    end
+
+    def reset_group_by!
+      self.groups_by = [] of Projection
+    end
+
+    def reset_order_by!
+      self.orders_by = [] of Order
+    end
+
     #
     # Insert specifics
     #
@@ -391,7 +404,14 @@ module Sqlite3
         unless union_queries.empty?
           union_type = union_all? ? " UNION ALL " : " UNION "
           s << union_type
-          s << union_queries.map(&.build).map { |q| q.rchop(";") } .join(union_type)
+
+          s << union_queries.map do |u|
+            u = u.dup
+            u.reset_limit!
+            u.reset_order_by!
+
+            u.build.rchop(";")
+          end.join(union_type)
         end
 
         s << " ORDER BY #{orders_by.map {|o| o.build.as(String) }.join(", ")}" unless orders_by.empty?
