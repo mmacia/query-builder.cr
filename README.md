@@ -44,9 +44,9 @@ feel like a common ORM fluent interface (ActiveRecord, SQLAlchemy, etc.).
 If you want to take advantage of SQL and build more complex sentences, you can
 use the formal method and get the best of both worlds: the powerful of SQL
 without the burden of building it concatenating strings neither using a ORM that
-dont't allow you to use the more advanced features.
+doesn't allow you to use the more advanced features.
 
-Of course, you can mix formal and syntactic sugar shortcuts at you own will.
+Of course, you can mix formal and syntactic sugar shortcuts at your own will.
 
 ### Basic SELECT statement
 
@@ -59,13 +59,13 @@ puts qb.build
 # -> SELECT `column1`, `column2`, `column3` FROM `table_name`;
 ```
 
-You can also call `select()` separatelly for each column (or mix both
+You can also call `#select` separatelly for each column (or mix both
 approaches).
 
 ```crystal
 qb = QueryBuilder.builder_for "sqlite3"
 
-qb.select("column1, "column2")
+qb.select("column1", "column2")
   .select("column3")
   .from("table_name")
 
@@ -105,7 +105,7 @@ alias Projection = Sqlite3::Projection
 .select(Projection.sum("column1"))
 .select(Projection.avg("column1"))
 .select(Projection.count("column1"))
-.select(Projection.count) // e.g. SELECT COUNT(*) FROM table_name
+.select(Projection.count) # e.g. SELECT COUNT(*) FROM table_name
 
 # Aliases. ANY Projection can be aliased by calling "alias"
 .select(Projection.column("column1").as("c1"))
@@ -169,7 +169,7 @@ qb = QueryBuilder.builder_for "sqlite3"
 qb.from(subquery);
 
 # you can also JOIN sub-queries:
-.from(From.subQuery(subquery).inner_join("table").on("col_from_subquery", "col_from_table")
+.from(From.sub_query(subquery).inner_join("table").on("col_from_subquery", "col_from_table")
 .from(From.table("table").inner_join(subquery).on("col_from_table", "col_from_subquery")
 .from(From.subquery(subquery1).inner_join(subquery2).on("col_from_subquery1", "col_from_subquery2")
 ```
@@ -182,6 +182,7 @@ alias.
 
 ```crystal
 alias From = Sqlite3::From
+alias Criteria = Sqlite3::Criteria
 
 qb = QueryBuilder.builder_for "sqlite3"
 
@@ -191,8 +192,13 @@ qb.select("column1", "t.column4")
       .on("column1", "column2")
     .left_join("t.table3")
       .on("column3", "t.column4")
-      .on_and(column5: 0)
+      .on_and(Criteria.equals("column5", 0))
   )
+
+puts qb.build
+# -> SELECT `column1`, `t`.`column4` FROM `table1`
+#    INNER JOIN `table2` ON `column1` = `column2`
+#    LEFT JOIN `t.table3` ON (`column3` = `t`.`column4` AND `column5` = ?);
 ```
 
 You can use `#join` instead of `#inner_join`.
@@ -219,15 +225,25 @@ subquery1.select("1").from("subtable");
 subquery2 = QueryBuilder.builder_for "sqlite3"
 subquery2.select(Projection.max("subquery_column1")).from("subtable");
 
+values = [1, 2, 3] of DB::Any
+
 qb = QueryBuilder.builder_for "sqlite3"
 qb.select("column1")
   .from("table")
-  .where_and(
+  .where(
     Criteria.equals("column1", 1)
-      .and(Criteria.in("column2", [1, 2, 3]))
+      .and(Criteria.in("column2", values))
       .or(Criteria.greater_than(Projection.subquery(subquery2), 5))
-      .and(Criteria.exists(subquery))
+      .and(Criteria.exists(subquery1))
   )
+
+puts qb.build
+# -> SELECT `column1` FROM `table`
+#    WHERE ((
+#      (`column1` = ? AND `column2` IN(?, ?, ?)) OR
+#      (SELECT MAX(`subquery_column1`) FROM `subtable`) > ?
+#    ) AND
+#    EXISTS(SELECT `1` FROM `subtable`));
 ```
 
 These are all the methods provided by the `Criteria` class:
@@ -326,7 +342,7 @@ Criteria.contains(Projection.column("column"), "test")  # e.g. LIKE '%test%'
 All of then can be combined with `.not` method.
 
 ```crystal
-alias Criteria = Criteria::Sqilte3
+alias Criteria = Sqlite3::Criteria
 alias Projection = Projection::Sqlite3
 
 Criteria.in("column", [1, 2, 3])
@@ -346,7 +362,7 @@ Criteria.exists(subquery)
 #### Logical operators
 
 ```crystal
-alias Criteria = Criteria::Sqilte3
+alias Criteria = Sqlite3::Criteria
 
 Criteria.and(criteria)
 Criteria.or(criteria)
@@ -359,14 +375,14 @@ Criteria.or(criteria)
 You can write this:
 
 ```crystal
-alias Crystal = Crystal::Sqlite3
+alias Criteria = Sqlite3::Criteria
 
 qb.where(Criteria.equals("column": 5))
 ```
 
 as this:
 ```crystal
-alias Crystal = Criteria::Sqlite3
+alias Crriteria = Sqlite3::Criteria
 
 qb.where(column: 5)
 ```
@@ -374,7 +390,7 @@ qb.where(column: 5)
 Also you can chain `AND` criterias like this:
 
 ```crystal
-alias Criteria = Criteria::Sqlite3
+alias Criteria = Sqlite3::Criteria
 
 qb.where(column1: 5, column2: "jhon", column3: true, column4: 5..10)
 ```
@@ -382,7 +398,7 @@ qb.where(column1: 5, column2: "jhon", column3: true, column4: 5..10)
 Is the equivalent to:
 
 ```crystal
-alias Criteria = Criteria::Sqlite3
+alias Criteria = Sqlite3::Criteria
 
 qb.where(Criteria.equals("column1", 5))
   .where(Criteria.equals("column2", "jhon"))
@@ -399,7 +415,7 @@ Supported operands:
 You can work with aliased columns:
 
 ```crystal
-alias Criteria = Criteria::Sqlite3
+alias Criteria = Sqlite3::Criteria
 
 .where("t.column": 5)
 ```
@@ -409,7 +425,7 @@ alias Criteria = Criteria::Sqlite3
 You can write expressions as:
 
 ```crystal
-alias Criteria = Criteria::Sqlite3
+alias Criteria = Sqlite3::Criteria
 
 qb.where("column > 4")
 ```
@@ -428,7 +444,7 @@ Chaining predicates with `AND` or `OR` is not supported at the moment.
 ### GROUP BY and ORDER BY
 
 ```crystal
-alias Projection = Projection::Sqlite3
+alias Projection = Sqlite3::Projection
 
 # Group by a column
 .group_by("column1", "column2")
@@ -501,10 +517,10 @@ builder1.union(builder2).union_all(builder3);
 
 puts builder1.build
 # -> SELECT `column1` FROM `table1`
-     UNION ALL
-     SELECT `column2` FROM `table2`
-     UNION ALL
-     SELECT `column3` FROM `table3` ORDER BY `column1` ASC LIMIT ? OFFSET ?;
+#    UNION ALL
+#    SELECT `column2` FROM `table2`
+#    UNION ALL
+#    SELECT `column3` FROM `table3` ORDER BY `column1` ASC LIMIT ? OFFSET ?;
 ```
 
 ### Basic INSERT statement
@@ -536,7 +552,7 @@ qb.insert
 
 puts qb.build
 # -> INSERT INTO `customers` (`name`, `address`, `city`, `postal_code`)
-     SELECT `name`, `address`, `city`, `postal_code` FROM `supliers`;
+#    SELECT `name`, `address`, `city`, `postal_code` FROM `supliers`;
 ```
 
 ### Basic UPDATE statement
@@ -546,8 +562,7 @@ qb = QueryBuilder.builder_for "sqlite3"
 columns = ["name", "age", "genre"]
 values = ["jhon", 13, "male"]
 
-qb
-  .update("students")
+qb.update("students")
 
 columns.zip(values).each do |col, val|
   qb.set(col, val)
@@ -563,8 +578,7 @@ puts qb.build
 
 ```crystal
 qb = QueryBuilder.builder_for "sqlite3"
-qb
-  .delete("students")
+qb.delete("students")
   .where(id: 1)
 
 puts qb.build
